@@ -1,75 +1,72 @@
-extends Node2D
-## Gracz: ruch z kolizja o kafle, sprint z kondycja, sterowanie klawiatura i dotykiem.
+extends Node3D
+## Gracz: ruch z kolizjami o kafle, sprint z kondycja, rzucanie przedmiotami.
 
-const SPEED := 136.0
-const SPRINT_SPEED := 196.0
-const RADIUS := 7.0
+const CharacterScript := preload("res://scripts/character.gd")
+const Models := preload("res://scripts/models.gd")
 
-var world: Node
-var facing := 0.0
+const WALK := 4.2
+const SPRINT := 6.0
+const RADIUS := 0.28
+
+var world
+var pos := Vector2.ZERO
+var facing := Vector2(0, -1)
+var ch
 var stamina := 1.0
-var auto_dir := Vector2.ZERO   # uzywane w tescie automatycznym
-var _drag_active := false
-var _drag_origin := Vector2.ZERO
-var _drag_pos := Vector2.ZERO
-var _step := 0.0
+var stun := 0.0
+var ammo := 6
+var item_idx := 0
+var speed_now := 0.0
+var throw_cd := 0.0
 
 
-func _input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		_drag_active = event.pressed
-		if event.pressed:
-			_drag_origin = event.position
-			_drag_pos = event.position
-	elif event is InputEventMouseMotion and _drag_active:
-		_drag_pos = event.position
+func setup(w, start: Vector2) -> void:
+	world = w
+	pos = start
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var d: Dictionary = Models.person("player", rng)
+	ch = CharacterScript.new()
+	add_child(ch)
+	ch.setup(d["mesh"], d["scale"])
+	_sync()
 
 
-func _read_input() -> Vector2:
-	if auto_dir != Vector2.ZERO:
-		return auto_dir.normalized()
-	var d := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
-	d.x += float(Input.is_physical_key_pressed(KEY_D)) - float(Input.is_physical_key_pressed(KEY_A))
-	d.y += float(Input.is_physical_key_pressed(KEY_S)) - float(Input.is_physical_key_pressed(KEY_W))
-	d = d.limit_length(1.0)
-	if _drag_active:
-		var v := _drag_pos - _drag_origin
-		if v.length() > 14.0:
-			d = v.normalized()
-	return d
+func _sync() -> void:
+	position = Vector3(pos.x, 0.0, pos.y)
 
 
-func _blocked(p: Vector2) -> bool:
-	return (world.is_solid_px(p + Vector2(-RADIUS, -RADIUS)) or world.is_solid_px(p + Vector2(RADIUS, -RADIUS))
-		or world.is_solid_px(p + Vector2(-RADIUS, RADIUS)) or world.is_solid_px(p + Vector2(RADIUS, RADIUS)))
-
-
-func _physics_process(delta: float) -> void:
-	var dir := _read_input()
+func tick(delta: float, dir: Vector2, sprint_held: bool) -> void:
+	if throw_cd > 0.0:
+		throw_cd -= delta
 	var moving := dir.length() > 0.05
-	var wants_sprint := Input.is_physical_key_pressed(KEY_SHIFT)
-	var sprinting := wants_sprint and stamina > 0.02 and moving
-	stamina = clampf(stamina + (-0.38 if sprinting else 0.22) * delta, 0.0, 1.0)
-	var sp: float = (SPRINT_SPEED if sprinting else SPEED) * float(world.speed_at(position))
+	var sprinting := sprint_held and stamina > 0.02 and moving
+	stamina = clampf(stamina + (-0.36 if sprinting else 0.20) * delta, 0.0, 1.0)
+	var sp: float = (SPRINT if sprinting else WALK) * float(world.speed_at(pos))
+	if stun > 0.0:
+		stun -= delta
+		sp *= 0.15
+	speed_now = 0.0
 	if moving:
-		facing = dir.angle()
-		_step += delta * sp * 0.06
-		var mv := dir * sp * delta
-		var nx := position + Vector2(mv.x, 0)
-		if not _blocked(nx):
-			position = nx
-		var ny := position + Vector2(0, mv.y)
-		if not _blocked(ny):
-			position = ny
-	queue_redraw()
+		var d := dir.normalized()
+		facing = d
+		var mv: Vector2 = d * sp * delta
+		var nx := pos + Vector2(mv.x, 0.0)
+		if not world.blocked(nx, RADIUS):
+			pos = nx
+		var ny := pos + Vector2(0.0, mv.y)
+		if not world.blocked(ny, RADIUS):
+			pos = ny
+		speed_now = sp
+	ch.animate(speed_now, delta)
+	ch.face(facing, delta)
+	_sync()
 
 
-func _draw() -> void:
-	draw_circle(Vector2(2, 3), RADIUS + 1.5, Color(0, 0, 0, 0.28))
-	draw_set_transform(Vector2.ZERO, facing, Vector2.ONE)
-	var sw := sin(_step) * 2.2
-	draw_rect(Rect2(-2 + sw, -RADIUS * 0.8, 5, 3), Color("#1b1b1b"))
-	draw_rect(Rect2(-2 - sw, RADIUS * 0.8 - 3, 5, 3), Color("#1b1b1b"))
-	draw_circle(Vector2.ZERO, RADIUS * 0.92, Color("#2f6fb5"))
-	draw_circle(Vector2(RADIUS * 0.25, 0), RADIUS * 0.62, Color("#3b3b3b"))
-	draw_circle(Vector2(RADIUS * 0.38, 0), RADIUS * 0.45, Color("#f0c8a0"))
+func hit_by(from: Vector2, stun_s: float, push: float) -> void:
+	stun = maxf(stun, stun_s)
+	var d := (pos - from).normalized()
+	var np := pos + d * push
+	if not world.blocked(np, RADIUS):
+		pos = np
+	ch.flash()

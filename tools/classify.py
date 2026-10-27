@@ -114,3 +114,15 @@ pv=np.zeros((Ht,Wt,3),np.uint8)
 for k,c in colors.items(): pv[out==k]=c
 Image.fromarray(pv).save('preview.png')
 np.save('out.npy',out);np.save('lv.npy',lv)
+
+# --- dodatkowe wyjscia dla wersji 3D ---
+np.save('pix_cls.npy',cls)
+base2=out.copy();base2[np.isin(base2,[12,13])]=0
+idx2=ndi.distance_transform_edt(base2==0,return_distances=False,return_indices=True)
+under2=base2[idx2[0],idx2[1]]
+under2[out==13]=13
+np.save('under2.npy',under2)
+rgb2=np.zeros((Ht,Wt,3),np.uint8)
+rgb2[:,:,0]=out*16;rgb2[:,:,1]=under2*16
+Image.fromarray(rgb2).save('grid2.png',optimize=True)
+print('grid2 saved')

@@ -22,3 +22,59 @@ renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/canvas_textures/default_texture_filter=0
 textures/vram_compression/import_etc2_astc=true
+anti_aliasing/quality/msaa_3d=2
+
+[shader_globals]
+
+g_night={
+"type": "float",
+"value": 0.0
+}
+g_l0={
+"type": "vec4",
+"value": Vector4(0, 0, 1, 0)
+}
+g_l1={
+"type": "vec4",
+"value": Vector4(0, 0, 1, 0)
+}
+g_l2={
+"type": "vec4",
+"value": Vector4(0, 0, 1, 0)
+}
+g_l3={
+"type": "vec4",
+"value": Vector4(0, 0, 1, 0)
+}
+g_l4={
+"type": "vec4",
+"value": Vector4(0, 0, 1, 0)
+}
+g_l5={
+"type": "vec4",
+"value": Vector4(0, 0, 1, 0)
+}
+g_l6={
+"type": "vec4",
+"value": Vector4(0, 0, 1, 0)
+}
+g_l7={
+"type": "vec4",
+"value": Vector4(0, 0, 1, 0)
+}
+g_l8={
+"type": "vec4",
+"value": Vector4(0, 0, 1, 0)
+}
+g_l9={
+"type": "vec4",
+"value": Vector4(0, 0, 1, 0)
+}
+g_l10={
+"type": "vec4",
+"value": Vector4(0, 0, 1, 0)
+}
+g_l11={
+"type": "vec4",
+"value": Vector4(0, 0, 1, 0)
+}
