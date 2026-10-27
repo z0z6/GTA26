@@ -23,8 +23,8 @@ jobs:
       - name: Import zasobów
         run: $GODOT --headless --path . --import
 
-      - name: Test dymny (siatka, kolizje, chunki)
+      - name: Test dymny (siatka, budynki, kolizje, mapa odległości, modele)
         run: $GODOT --headless --path . --script res://tests/smoke.gd
 
-      - name: Test ruchu gracza
-        run: $GODOT --headless --path . -- --autotest
+      - name: Symulacja rozgrywki (40 s, bez okna)
+        run: $GODOT --headless --path . -- --autoplay=40 --steps=10

@@ -75,7 +75,7 @@ jobs:
       - name: Testy
         run: |
           $GODOT --headless --path . --script res://tests/smoke.gd
-          $GODOT --headless --path . -- --autotest
+          $GODOT --headless --path . -- --autoplay=40 --steps=10
 
       - name: Eksport APK (debug)
         run: |
