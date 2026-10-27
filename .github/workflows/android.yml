@@ -1,0 +1,89 @@
+name: Android build
+
+on:
+  workflow_dispatch:        # ręcznie: Actions -> Android build -> Run workflow
+  push:
+    tags: ["v*"]            # albo po wypchnięciu tagu, np. v0.1.0
+
+env:
+  GODOT_VERSION: "4.4.1"
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Pobierz Godota
+        run: |
+          curl -sL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -oq godot.zip
+          chmod +x "Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+          echo "GODOT=$PWD/Godot_v${GODOT_VERSION}-stable_linux.x86_64" >> "$GITHUB_ENV"
+
+      - name: Cache szablonów eksportu
+        id: tpl-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable
+          key: godot-templates-android-${{ env.GODOT_VERSION }}
+
+      - name: Pobierz szablony eksportu (tylko Android)
+        if: steps.tpl-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -sL -o templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$DIR"
+          unzip -oj templates.tpz "templates/android_*" "templates/version.txt" -d "$DIR"
+          rm templates.tpz
+          ls -la "$DIR"
+
+      - name: Android SDK
+        run: |
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platform-tools" "build-tools;35.0.1" "platforms;android-35" "cmake;3.10.2.4988404" "ndk;28.1.13356709"
+
+      - name: Klucz debug i ustawienia edytora
+        run: |
+          keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android \
+            -keystore "$HOME/debug.keystore" -storepass android \
+            -dname "CN=Android Debug,O=Android,C=US" -validity 9999 -deststoretype pkcs12
+          mkdir -p "$HOME/.config/godot"
+          for f in editor_settings-4.4.tres editor_settings-4.tres; do
+            cat > "$HOME/.config/godot/$f" <<SETTINGS
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/android_sdk_path = "$ANDROID_HOME"
+          export/android/debug_keystore = "$HOME/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          SETTINGS
+          done
+
+      - name: Import zasobów
+        run: $GODOT --headless --path . --import
+
+      - name: Testy
+        run: |
+          $GODOT --headless --path . --script res://tests/smoke.gd
+          $GODOT --headless --path . -- --autotest
+
+      - name: Eksport APK (debug)
+        run: |
+          mkdir -p build
+          $GODOT --headless --path . --export-debug "Android" build/makow-run-debug.apk
+          ls -la build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: makow-run-debug-apk
+          path: build/makow-run-debug.apk
