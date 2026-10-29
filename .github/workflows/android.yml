@@ -48,7 +48,7 @@ jobs:
         run: |
           export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
           yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platform-tools" "build-tools;35.0.1" "platforms;android-35" "cmake;3.10.2.4988404" "ndk;28.1.13356709"
+          sdkmanager "platform-tools" "build-tools;35.0.1" "platforms;android-35"
 
       - name: Klucz debug i ustawienia edytora
         run: |
