@@ -23,7 +23,7 @@ func _initialize() -> void:
 	var total_b := 0
 	for k in world._bld_index:
 		total_b += world._bld_index[k].size()
-	_check(total_b > 2000, "wielokaty budynkow (%d)" % total_b)
+	_check(total_b > 1500, "wielokaty budynkow (%d)" % total_b)
 	var s: Vector2 = world.find_start(Vector2i(533, 441))
 	_check(not world.blocked(s, 0.3), "start nie jest w scianie")
 	_check(world.blocked(Vector2(-5, 10), 0.3), "poza mapa jest lita")

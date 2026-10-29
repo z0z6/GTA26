@@ -60,9 +60,9 @@ vec3 class_color(int c, vec2 p) {
 	}
 	if (c == 1) return paving(p, 1.0) + (grain - 0.5) * 0.02;
 	if (c == 2) {
-		float m = smoothstep(0.36, 0.52, fbm(p * 0.75 + 13.0));
-		vec3 earth = vec3(0.67, 0.61, 0.49) * (0.92 + 0.14 * fbm(p * 2.0)) + (grain - 0.5) * 0.04;
-		return mix(earth, grass(p) * 0.96, m);
+		float m = smoothstep(0.20, 0.32, fbm(p * 0.6 + 13.0));
+		vec3 earth = vec3(0.62, 0.60, 0.46) * (0.94 + 0.10 * fbm(p * 1.5)) + (grain - 0.5) * 0.03;
+		return mix(earth, grass(p) * 0.97, m * 0.96);
 	}
 	if (c == 3) {
 		vec2 q = p / 2.0;
@@ -111,7 +111,7 @@ vec3 class_color(int c, vec2 p) {
 
 void fragment() {
 	vec2 p = wpos.xz;
-	vec2 warp = (vec2(vnoise(p * 2.6), vnoise(p * 2.6 + 7.1)) - 0.5) * 0.24;
+	vec2 warp = (vec2(vnoise(p * 2.6), vnoise(p * 2.6 + 7.1)) - 0.5) * 0.08;
 	vec2 pw = p + warp;
 	ivec2 t0 = ivec2(floor(pw));
 	float w[16];

@@ -17,6 +17,9 @@ const SHADOW_SHADER: Shader = preload("res://shaders/shadow.gdshader")
 
 const START_TILE := Vector2i(533, 441)
 const CAM_HEIGHT := 40.0
+const FOV_MIN := 15.0
+const FOV_MAX := 36.0
+const FOV_DEFAULT := 24.0
 const WAVES := [[0.0, "wind"], [18.0, "chw"], [40.0, "kon"], [65.0, "kom"], [95.0, "wind"], [125.0, "chw"], [155.0, "kon"], [190.0, "kom"]]
 const LABELS := [
 	["Rynek", 534, 442], ["Zalew", 608, 352], ["Park Sapera", 577, 505], ["Szpital miejski", 296, 544],
@@ -55,6 +58,7 @@ var joy_active := false
 var joy_origin := Vector2.ZERO
 var joy_pos := Vector2.ZERO
 var _next_item := 0
+var _fov_target := FOV_DEFAULT
 var _light_t := 0.0
 var _cam_pos := Vector2.ZERO
 var _shadow_mm: MultiMesh
@@ -107,7 +111,7 @@ func _ready() -> void:
 	player.setup(world, start)
 
 	cam = Camera3D.new()
-	cam.fov = 33.0
+	cam.fov = FOV_DEFAULT
 	cam.near = 1.0
 	cam.far = 160.0
 	cam.rotation_degrees = Vector3(-90, 0, 0)
@@ -483,9 +487,23 @@ func on_projectile_land(p: Vector2, it: Dictionary) -> void:
 
 
 # ------------------------------------------------------------------ wejscie
+func zoom_by(factor: float) -> void:
+	_fov_target = clampf(_fov_target / factor, FOV_MIN, FOV_MAX)
+
+
 func _unhandled_input(ev: InputEvent) -> void:
+	if ev is InputEventMagnifyGesture:
+		zoom_by(ev.factor)
+		return
+	if ev is InputEventMouseButton and ev.pressed and (ev.button_index == MOUSE_BUTTON_WHEEL_UP or ev.button_index == MOUSE_BUTTON_WHEEL_DOWN):
+		zoom_by(1.12 if ev.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.12)
+		return
 	if ev is InputEventKey and ev.pressed and not ev.echo:
-		if ev.keycode == KEY_N:
+		if ev.keycode == KEY_EQUAL or ev.keycode == KEY_PLUS or ev.keycode == KEY_KP_ADD:
+			zoom_by(1.15)
+		elif ev.keycode == KEY_MINUS or ev.keycode == KEY_KP_SUBTRACT:
+			zoom_by(1.0 / 1.15)
+		elif ev.keycode == KEY_N:
 			toggle_night()
 		elif ev.keycode == KEY_ENTER or ev.keycode == KEY_KP_ENTER:
 			if state != "play":
@@ -609,7 +627,7 @@ func _update(dt: float) -> void:
 	world.tree_mat.set_shader_parameter("fade_pos", Vector3(player.pos.x, 0, player.pos.y))
 	for lb in _labels:
 		var d: float = Vector2(lb.position.x, lb.position.z).distance_to(_cam_pos)
-		lb.visible = d < 24.0 and night_cur < 0.7
+		lb.visible = d < 20.0 and night_cur < 0.7
 	hud.btn_night.text = "Dzień" if night_target > 0.5 else "Noc"
 	hud.position = Vector2.ZERO
 	hud.size = get_viewport().get_visible_rect().size
@@ -720,6 +738,7 @@ func _update_camera(dt: float) -> void:
 	if shake > 0.0:
 		off = Vector2(rng.randf_range(-1, 1), rng.randf_range(-1, 1)) * shake * 0.5
 	cam.position = Vector3(_cam_pos.x + off.x, CAM_HEIGHT, _cam_pos.y + off.y)
+	cam.fov = lerpf(cam.fov, _fov_target, minf(1.0, dt * 8.0))
 
 
 func _update_shadows() -> void:
