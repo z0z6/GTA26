@@ -1,0 +1,77 @@
+name: Web build (GitHub Pages)
+
+on:
+  workflow_dispatch:        # ręcznie: Actions -> Web build -> Run workflow
+  push:
+    tags: ["v*"]
+
+env:
+  GODOT_VERSION: "4.4.1"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pobierz Godota
+        run: |
+          curl -sL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -oq godot.zip
+          chmod +x "Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+          echo "GODOT=$PWD/Godot_v${GODOT_VERSION}-stable_linux.x86_64" >> "$GITHUB_ENV"
+
+      - name: Cache szablonów eksportu (web)
+        id: tpl-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable
+          key: godot-templates-web-${{ env.GODOT_VERSION }}
+
+      - name: Pobierz szablony eksportu (tylko web)
+        if: steps.tpl-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -sL -o templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$DIR"
+          unzip -oj templates.tpz "templates/web_nothreads_*" "templates/version.txt" -d "$DIR"
+          rm templates.tpz
+
+      - name: Import zasobów
+        run: $GODOT --headless --path . --import
+
+      - name: Testy
+        run: |
+          $GODOT --headless --path . --script res://tests/smoke.gd
+          $GODOT --headless --path . -- --autoplay=40 --steps=10
+
+      - name: Eksport Web
+        run: |
+          mkdir -p build/web
+          $GODOT --headless --path . --export-release "Web" build/web/index.html
+          touch build/web/.nojekyll
+          ls -la build/web
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
