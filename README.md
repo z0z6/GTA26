@@ -12,6 +12,7 @@ Silnik: Godot 4.4 (GDScript, renderer Compatibility). Cel: Android.
 - Postacie 3D z animacją: gracz, 4 typy wierzycieli, przechodnie z reakcjami na sytuację (auta, pościg, rzucane przedmioty, wydarzenia).
 - Ruch uliczny: 9 typów nadwozia, losowe kolory i zmyślone marki.
 - Obrona: rzucanie 7 rodzajów przedmiotów (w tym wybuchowa Petarda), zbieranie ich z toreb.
+- Interfejs w stylu GTA 2: paski z ikonami (kondycja, dług, zagrożenie), kwota długu z konturem, głowy pościgu, slot przedmiotu z ilością, żółty baner z nazwą dzielnicy, komunikaty z czaszką (`scripts/hud.gd`).
 - Efekty: wybuchy (ogień, iskry, żar, dym, fala uderzeniowa, przypalenie ziemi), ślady opon i dym spod kół przy hamowaniu awaryjnym aut, błyski świateł (`scripts/effects.gd`).
 
 ## Uruchomienie
@@ -86,3 +87,4 @@ Podgląd bez grania: `-- --shot=plik.png --at=516,447 --autoplay=1 --steps=1 --f
 
 Układ ulic, budynków i terenów: © autorzy OpenStreetMap, licencja ODbL (https://www.openstreetmap.org/copyright).
 Atrybucja jest widoczna w grze. Postacie, marki samochodów i nazwy są zmyślone.
+Czcionki Anton i Oswald (katalog `fonts/`): © autorzy projektów, licencja SIL Open Font License 1.1 (pliki `fonts/OFL-*.txt`).

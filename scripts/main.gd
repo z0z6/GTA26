@@ -48,6 +48,10 @@ var spent := 0.0
 var end_msg := ""
 var banner := ""
 var banner_t := 0.0
+var district := ""          # nazwa dzielnicy, w ktorej jest gracz (zolty baner jak w GTA 2)
+var district_t := 0.0
+const DISTRICT_SHOW := 3.6
+const DISTRICT_RADIUS := 15.0
 var shake := 0.0
 var enemies: Array = []
 var npcs: Array = []
@@ -275,6 +279,8 @@ func start_game() -> void:
 	end_msg = ""
 	banner = ""
 	banner_t = 0.0
+	district = ""
+	district_t = 0.0
 	player.stamina = 1.0
 	player.stun = 0.0
 	player.ammo = 6
@@ -315,6 +321,22 @@ func next_item_name() -> String:
 
 func add_float(text: String, p: Vector2, col: Color, ttl := 1.6) -> void:
 	floats.append({"text": text, "pos": p, "col": col, "t": ttl, "ttl": ttl, "rise": 0.0})
+
+
+## Sprawdza, czy gracz wszedl w obszar nazwanej dzielnicy (LABELS); przy wejsciu pokazuje zolty baner.
+func _update_district(dt: float) -> void:
+	district_t -= dt
+	var best := ""
+	var bd := DISTRICT_RADIUS
+	for L in LABELS:
+		var d: float = player.pos.distance_to(Vector2(L[1] + 0.5, L[2] + 0.5))
+		if d < bd:
+			bd = d
+			best = L[0]
+	if best != district:
+		district = best
+		if best != "":
+			district_t = DISTRICT_SHOW
 
 
 func banner_show(t: String) -> void:
@@ -680,6 +702,7 @@ func _update(dt: float) -> void:
 			_spawn_enemy(WAVES[wave_idx][1], wave_idx == 0)
 			wave_idx += 1
 		player.tick(dt, _read_dir(), Input.is_physical_key_pressed(KEY_SHIFT) or hud.sprint_held)
+		_update_district(dt)
 		debt += debt * 0.032 / 60.0 * dt
 		for e in enemies:
 			e.tick(dt)
@@ -726,7 +749,7 @@ func _update(dt: float) -> void:
 	for lb in _labels:
 		var d: float = Vector2(lb.position.x, lb.position.z).distance_to(_cam_pos)
 		lb.visible = d < 20.0 and night_cur < 0.7
-	hud.btn_night.text = next_time_of_day_name()
+	hud.btn_night.text = next_time_of_day_name().to_upper()
 	hud.position = Vector2.ZERO
 	hud.size = get_viewport().get_visible_rect().size
 	hud.queue_redraw()
