@@ -15,6 +15,7 @@ const MeshBuilder := preload("res://scripts/mesh_builder.gd")
 const CharacterScript := preload("res://scripts/character.gd")
 const LightMapScript := preload("res://scripts/lightmap.gd")
 const PostFxScript := preload("res://scripts/postfx.gd")
+const EffectsScript := preload("res://scripts/effects.gd")
 const SHADOW_SHADER: Shader = preload("res://shaders/shadow.gdshader")
 
 const NIGHT_DUSK := 0.5     # etapy doby: 0 dzien, 0.5 zmierzch, 1 noc
@@ -35,6 +36,7 @@ var rng := RandomNumberGenerator.new()
 var world
 var lights            # mapa swiatel (scripts/lightmap.gd)
 var postfx            # bloom (scripts/postfx.gd)
+var fx                # efekty: wybuchy, dym, slady opon (scripts/effects.gd)
 var flow
 var player
 var cam: Camera3D
@@ -74,6 +76,7 @@ var _labels: Array = []
 var _frames := 0
 var _shot := ""
 var _autoplay := 0.0
+var _fxdemo := Vector2.ZERO
 var _auto_dir := Vector2.ZERO
 var _auto_t := 0.0
 var time_scale_test := 1.0
@@ -100,6 +103,9 @@ func _ready() -> void:
 			test_dusk = true
 		elif a.begins_with("--autoplay="):
 			_autoplay = float(a.substr(11))
+		elif a.begins_with("--fxdemo="):
+			var q := a.substr(9).split(",")
+			_fxdemo = Vector2(float(q[0]), float(q[1]))
 		elif a.begins_with("--seed="):
 			rng.seed = int(a.substr(7))
 		elif a.begins_with("--steps="):
@@ -108,6 +114,9 @@ func _ready() -> void:
 	add_child(lights)
 	postfx = PostFxScript.new()
 	add_child(postfx)
+	fx = EffectsScript.new()
+	add_child(fx)
+	fx.setup(self)
 	world = WorldScript.new()
 	add_child(world)
 	world.setup()
@@ -476,6 +485,13 @@ func player_throw() -> void:
 
 
 func on_projectile_hit_enemy(e, it: Dictionary, from: Vector2) -> void:
+	if it.get("boom", false):
+		_detonate(e.pos, it)
+		return
+	_apply_enemy_hit(e, it, from)
+
+
+func _apply_enemy_hit(e, it: Dictionary, from: Vector2) -> void:
 	e.hit(it, from)
 	stats["hits"] += 1
 	lights.flash(e.pos, Color(1.0, 0.92, 0.6), 3.0, 0.3)
@@ -485,6 +501,31 @@ func on_projectile_hit_enemy(e, it: Dictionary, from: Vector2) -> void:
 	for n in npcs:
 		if n.pos.distance_to(e.pos) < 4.0:
 			n.alarm(e.pos, 0.5)
+
+
+## Wybuch petardy: efekty, ogluszenie wierzycieli, panika przechodniow, zatrzymanie aut, kara za wlasna petarde.
+func _detonate(p: Vector2, it: Dictionary) -> void:
+	fx.explosion(p, 2.6)
+	for e in enemies:
+		if e.pos.distance_to(p) < 3.2:
+			_apply_enemy_hit(e, it, p)
+	for n in npcs:
+		var d: float = n.pos.distance_to(p)
+		if d < 2.2:
+			n.knock(p)
+		elif d < 5.0:
+			n.alarm(p, 1.0)
+	for c in cars:
+		if c.pos.distance_to(p) < 3.6 and c.speed > 0.8:
+			fx.car_impact(c, c.speed)
+			c.speed = 0.0
+			c.honk_cd = 2.0
+			add_float("Beeep!", c.pos, Color("#ffd23a"), 1.0)
+	if player.pos.distance_to(p) < 1.7:
+		debt += 300.0
+		shake = maxf(shake, 0.7)
+		player.hit_by(p, 1.2, 0.8)
+		add_float("Własna petarda! +300 zł", player.pos, Color("#ff9d5e"), 2.0)
 
 
 func _drop_coin(p: Vector2) -> void:
@@ -497,17 +538,26 @@ func _drop_coin(p: Vector2) -> void:
 
 
 func on_projectile_hit_npc(n, it: Dictionary, from: Vector2) -> void:
+	if it.get("boom", false):
+		_detonate(n.pos, it)
+		return
 	n.knock(from)
 	debt += 300.0
 	add_float("Rzut w przechodnia! +300 zł", n.pos, Color("#ffb070"))
 
 
 func on_projectile_hit_car(c, it: Dictionary) -> void:
+	if it.get("boom", false):
+		_detonate(c.pos, it)
+		return
 	add_float("Beeep!", c.pos, Color("#ffd23a"), 1.0)
 	c.honk_cd = 2.0
 
 
 func on_projectile_land(p: Vector2, it: Dictionary) -> void:
+	if it.get("boom", false):
+		_detonate(p, it)
+		return
 	for n in npcs:
 		if n.pos.distance_to(p) < 3.5:
 			n.alarm(p, 0.7)
@@ -579,6 +629,8 @@ func _read_dir() -> Vector2:
 func _process(delta: float) -> void:
 	var dt := minf(delta, 0.05) * time_scale_test
 	_frames += 1
+	if _fxdemo != Vector2.ZERO and _frames == 20:
+		_run_fxdemo()
 	for k in _steps:
 		if _autoplay > 0.0 and state == "play":
 			_autoplay_step(dt)
@@ -587,9 +639,24 @@ func _process(delta: float) -> void:
 		if _shot != "":
 			get_viewport().get_texture().get_image().save_png(_shot)
 		var healthy: bool = not world.blocked(player.pos, 0.2) and npcs.size() > 0 and cars.size() > 0
-		print("STAT czas=%.1f dlug=%d wrogowie=%d npc=%d auta=%d rzuty=%d trafienia=%d kary_auta=%d dotkniecia=%d chunki=%d" % [
-			time, debt, enemies.size(), npcs.size(), cars.size(), stats["thrown"], stats["hits"], stats["car_fines"], stats["touches"], world.chunk_count()])
+		print("STAT czas=%.1f dlug=%d wrogowie=%d npc=%d auta=%d rzuty=%d trafienia=%d kary_auta=%d dotkniecia=%d chunki=%d wybuchy=%d slady=%d" % [
+			time, debt, enemies.size(), npcs.size(), cars.size(), stats["thrown"], stats["hits"], stats["car_fines"], stats["touches"], world.chunk_count(), fx.boom_count, fx.skid_count])
 		get_tree().quit(0 if (healthy or _autoplay <= 0.0) else 1)
+
+
+## Test wizualny (--fxdemo=x,y): wybuch w podanym miejscu oraz zakrzywione slady opon obok.
+func _run_fxdemo() -> void:
+	_detonate(_fxdemo, items[6])
+	for side in [-1.0, 1.0]:
+		var prev := Vector2.ZERO
+		for i in 40:
+			var t := i / 39.0
+			var q := _fxdemo + Vector2(-9.0 + t * 7.0, -0.9 + side * 0.32 + sin(t * 2.2) * 0.8)
+			if i > 0:
+				fx.skid_segment(prev, q)
+			prev = q
+	for i in 6:
+		fx.smoke_puff(_fxdemo + Vector2(-3.0 + i * 0.5, -0.6 + sin(i * 0.4) * 0.5), 0.4, 1.2, 1.6)
 
 
 func _autoplay_step(dt: float) -> void:
@@ -650,6 +717,7 @@ func _update(dt: float) -> void:
 	night_cur = move_toward(night_cur, night_target, dt * 0.6)
 	world.set_night(night_cur)
 	postfx.set_night(night_cur)
+	fx.tick(dt)
 	_update_camera(dt)
 	_update_lights(dt)
 	_update_shadows()
@@ -711,6 +779,7 @@ func _check_car_hits() -> void:
 			stats["car_fines"] += 1
 			shake = 0.3
 			lights.flash(player.pos, Color(1.0, 0.45, 0.2), 4.0, 0.4)
+			fx.car_impact(c, c.speed)
 			player.hit_by(c.pos, 1.0, 0.6)
 			add_float("Mandat: potrącenie (%s)! +300 zł" % c.car_name, player.pos, Color("#ff9d5e"), 2.0)
 			c.speed = 0.0
@@ -720,6 +789,7 @@ func _check_car_hits() -> void:
 		for e in enemies:
 			if e.stun <= 0.0 and c.overlaps(e.pos, e.radius):
 				e.hit_by_car(c)
+				fx.car_impact(c, c.speed)
 				lights.flash(e.pos, Color(1.0, 0.55, 0.25), 3.5, 0.4)
 				add_float("Windykator potrącony!", e.pos, Color("#9be58a"), 1.6)
 				c.speed = 0.0

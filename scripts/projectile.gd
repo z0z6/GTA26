@@ -12,6 +12,7 @@ var item: Dictionary
 var alive := true
 var spin := 0.0
 var from_pos := Vector2.ZERO
+var _trail_t := 0.0
 
 
 func setup(g, start: Vector2, target: Vector2, it: Dictionary, mat: Material) -> void:
@@ -44,6 +45,11 @@ func tick(delta: float) -> void:
 	rotation.y += spin * delta
 	rotation.x += spin * 0.6 * delta
 	_sync()
+	if item.get("boom", false):
+		_trail_t -= delta
+		if _trail_t <= 0.0:
+			_trail_t = 0.03
+			game.fx.fuse_spark(pos, h)
 	if game.world.is_solid_at(pos) and game.world.class_at(pos) == 12 and h < 2.0:
 		_land()
 		return

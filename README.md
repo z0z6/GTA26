@@ -11,7 +11,8 @@ Silnik: Godot 4.4 (GDScript, renderer Compatibility). Cel: Android.
   z elewacjami, dachami spadzistymi i płaskimi, drzewa, latarnie, tryb nocny.
 - Postacie 3D z animacją: gracz, 4 typy wierzycieli, przechodnie z reakcjami na sytuację (auta, pościg, rzucane przedmioty, wydarzenia).
 - Ruch uliczny: 9 typów nadwozia, losowe kolory i zmyślone marki.
-- Obrona: rzucanie 6 rodzajów przedmiotów, zbieranie ich z toreb.
+- Obrona: rzucanie 7 rodzajów przedmiotów (w tym wybuchowa Petarda), zbieranie ich z toreb.
+- Efekty: wybuchy (ogień, iskry, żar, dym, fala uderzeniowa, przypalenie ziemi), ślady opon i dym spod kół przy hamowaniu awaryjnym aut, błyski świateł (`scripts/effects.gd`).
 
 ## Uruchomienie
 
@@ -57,6 +58,23 @@ Bloom działa wieczorem i w nocy; na słabszym telefonie wyłączysz go jedną s
 
 Nastrój nocy reguluje się w `shaders/common.gdshaderinc`: stałe `AMB_DUSK` i `AMB_NIGHT` (światło otoczenia)
 oraz `lamps_on()` (kiedy zapalają się latarnie i okna).
+
+## Efekty (wybuchy, ślady opon)
+
+`scripts/effects.gd` rysuje trzy warstwy MultiMesh (cząsteczki świecące, dym, decale na ziemi), więc cały system to 3 wywołania rysowania.
+Z kodu gry wywołujesz:
+
+```
+fx.explosion(pozycja, promień)          # pełny wybuch + przypalenie + błysk w mapie świateł + drżenie kamery
+fx.spark_burst(pozycja, ile, szybkość)  # garść iskier
+fx.smoke_puff(pozycja, ...)             # chmurka dymu
+fx.skid_segment(a, b)                   # odcinek śladu opony
+fx.car_impact(auto, prędkość)           # nagłe zatrzymanie auta: ślad hamowania, iskry, dym
+```
+
+Ślady opon pojawiają się same, gdy auto hamuje awaryjnie (`car.gd`). Wybuch uruchamia Petarda (`_detonate()` w `main.gd`):
+ogłusza wierzycieli, płoszy przechodniów, zatrzymuje pobliskie auta, a trafiony własną petardą gracz dostaje 300 zł kary.
+Podgląd bez grania: `-- --shot=plik.png --at=516,447 --autoplay=1 --steps=1 --fxdemo=522,448` (wybuch i ślady w podanym miejscu).
 
 ## Dane
 

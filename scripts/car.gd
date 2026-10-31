@@ -146,7 +146,10 @@ func tick(delta: float) -> void:
 	if gap < 2.4:
 		want = minf(want, maxf(0.0, (gap - 0.4) * 1.5))
 	var acc := 7.5 if want < speed else 2.6
+	var v0 := speed
 	speed = move_toward(speed, want, acc * delta)
+	if gap < 1.5 and v0 > 1.5 and want < v0 - 0.25:
+		game.fx.skid_car(self)          # hamowanie awaryjne: slady opon i dym spod kol
 	var step := dir * speed * delta
 	var np := pos + step
 	if world.is_solid_at(np):

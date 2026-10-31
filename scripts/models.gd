@@ -249,6 +249,7 @@ static func items() -> Array:
 		["Bułka", 0.5, "Bułka?!"],
 		["Kapeć", 0.8, "Kapeć!?"],
 		["Pilot", 1.0, "Pilot od telewizora!"],
+		["Petarda", 2.4, "Moje uszy!"],
 	]
 	for i in specs.size():
 		var mb := MeshBuilder.new()
@@ -261,7 +262,11 @@ static func items() -> Array:
 			3: mb.sphere(Vector3(0, 0, 0), Vector3(0.09, 0.06, 0.07), _c("#c99a5a"), 0.0, 7, 4)
 			4: mb.box(Vector3(0, 0, 0), Vector3(0.07, 0.025, 0.16), _c("#9a6a4a"))
 			5: mb.box(Vector3(0, 0, 0), Vector3(0.05, 0.025, 0.14), _c("#222426"))
-		list.append({"name": specs[i][0], "mesh": mb.to_mesh(), "stun": specs[i][1], "text": specs[i][2]})
+			6:
+				mb.cylinder_y(Vector3(0, 0, 0), 0.035, 0.13, _c("#d23a2e"), 0.0, 7)
+				mb.cylinder_y(Vector3(0, 0.09, 0), 0.008, 0.05, _c("#e8d9a8"), 0.0, 5)
+				mb.sphere(Vector3(0, 0.13, 0), Vector3(0.022, 0.022, 0.022), _c("#ffb040", 0.5), 0.0, 5, 4)   # zarzacy sie loncik (swieci w nocy)
+		list.append({"name": specs[i][0], "mesh": mb.to_mesh(), "stun": specs[i][1], "text": specs[i][2], "boom": specs[i][0] == "Petarda"})
 	return list
 
 

@@ -50,7 +50,7 @@ func _initialize() -> void:
 	for bt in 9:
 		var c: Dictionary = Models.car(bt, rng)
 		_check(c["mesh"].get_surface_count() == 1 and c["length"] > 1.0, "model auta typ %d (%s)" % [bt, c["name"]])
-	_check(Models.items().size() == 6, "przedmioty do rzucania")
+	_check(Models.items().size() == 7, "przedmioty do rzucania")
 	print("WYNIK: ", "OK" if ok else "BLAD")
 	quit(0 if ok else 1)
 

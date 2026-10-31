@@ -38,3 +38,7 @@ g_lm_origin={
 "type": "vec2",
 "value": Vector2(0, 0)
 }
+g_fxtime={
+"type": "float",
+"value": 0.0
+}
