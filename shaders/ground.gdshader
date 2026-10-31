@@ -5,6 +5,7 @@ render_mode unshaded, depth_draw_opaque, cull_disabled;
 uniform sampler2D gridtex : filter_nearest, repeat_disable;  // R8: klasa podloza
 uniform sampler2D bmask : filter_linear, repeat_disable;     // R8: pokrycie budynkami
 uniform vec2 grid_size = vec2(1074.0, 1001.0);
+uniform float wetness : hint_range(0.0, 1.0) = 1.0;   // 0 = suchy asfalt, 1 = mokry (widoczny od zmierzchu)
 varying vec3 wpos;
 
 void vertex() {
@@ -185,6 +186,33 @@ void fragment() {
 	sh /= 3.0;
 	col *= 1.0 - 0.34 * clamp(sh, 0.0, 1.0);
 
-	col = apply_night(col, p);
+	// --- mokry asfalt: ciemniejsza nawierzchnia, kaluze i odbicia swiatel (tylko wieczorem i w nocy) ---
+	float wet = 0.0;
+	float dark_wet = smoothstep(0.1, 0.7, night) * wetness;
+	if (dark_wet > 0.001) {
+		float road = smoothstep(0.55, 1.1, roadw);
+		float puddle = smoothstep(0.50, 0.64, fbm(p * 0.28 + vec2(17.0, 5.0)));
+		wet = road * mix(0.55, 1.0, puddle) * dark_wet;
+		col *= 1.0 - 0.26 * wet;
+		col = apply_night(col, p);
+		if (wet > 0.01) {
+			// odbicie: swiatlo rozmazane wzdluz osi pionowej ekranu (jak odbicie latarni w kaluzy),
+			// w kaluzach mocniejsze i bardziej "lustrzane"
+			float reach = mix(0.5, 0.9, puddle);
+			vec3 refl = light_rgb(p) * 1.0;
+			for (int i = 1; i <= 3; i++) {
+				float o = float(i) * reach;
+				float wgt = 1.0 - float(i) * 0.25;
+				refl += (light_rgb(p + vec2(0.0, o)) + light_rgb(p - vec2(0.0, o))) * wgt;
+			}
+			refl *= 1.0 / 4.0;
+			float glint = 0.85 + 0.30 * vnoise(vec2(p.x * 9.0, p.y * 2.5 + TIME * 0.25));   // pionowe, drobne bloki swiatla
+			float spec = wet * mix(0.30, 0.75, puddle) * glint * lamps_on(night);
+			col += refl * spec * vec3(1.0, 0.96, 0.88);
+			col += vec3(0.020, 0.028, 0.050) * wet * puddle * night;   // chlodny polysk nieba w kaluzach
+		}
+	} else {
+		col = apply_night(col, p);
+	}
 	ALBEDO = to_lin(col);
 }

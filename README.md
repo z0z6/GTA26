@@ -6,7 +6,7 @@ Silnik: Godot 4.4 (GDScript, renderer Compatibility). Cel: Android.
 
 ## Co jest w grze
 
-- Oświetlenie nocne: kolorowa mapa świateł (`scripts/lightmap.gd`) z latarniami, stożkami reflektorów aut, tylnymi światłami i błyskami; trzy pory doby (dzień, zmierzch, noc).
+- Oświetlenie nocne: kolorowa mapa świateł (`scripts/lightmap.gd`) z latarniami, stożkami reflektorów aut, tylnymi światłami i błyskami; trzy pory doby (dzień, zmierzch, noc), bloom (`shaders/bloom.gdshader`, `scripts/postfx.gd`) oraz mokry asfalt z odbiciami świateł i kałużami (`shaders/ground.gdshader`).
 - Podłoże rysowane shaderem (gładkie granice terenów, chodniki, oznaczenia dróg, woda), budynki z wielokątów OSM
   z elewacjami, dachami spadzistymi i płaskimi, drzewa, latarnie, tryb nocny.
 - Postacie 3D z animacją: gracz, 4 typy wierzycieli, przechodnie z reakcjami na sytuację (auta, pościg, rzucane przedmioty, wydarzenia).
@@ -51,6 +51,9 @@ lights.point(pozycja, promień, Color(...), jasność)                      # la
 lights.cone(pozycja, kierunek, zasięg, połowa_szerokości, Color(...), jasność)   # reflektor
 lights.flash(pozycja, Color(...), promień, czas)                          # krótki błysk (trafienie, uderzenie)
 ```
+
+Bloom działa wieczorem i w nocy; na słabszym telefonie wyłączysz go jedną stałą `ENABLED` w `scripts/postfx.gd`
+(siła: `BLOOM_STRENGTH`). Wilgotność jezdni to uniform `wetness` materiału terenu (0 = sucho, 1 = mokro; w dzień bez efektu).
 
 Nastrój nocy reguluje się w `shaders/common.gdshaderinc`: stałe `AMB_DUSK` i `AMB_NIGHT` (światło otoczenia)
 oraz `lamps_on()` (kiedy zapalają się latarnie i okna).

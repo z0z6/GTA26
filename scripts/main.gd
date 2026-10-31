@@ -14,6 +14,7 @@ const Models := preload("res://scripts/models.gd")
 const MeshBuilder := preload("res://scripts/mesh_builder.gd")
 const CharacterScript := preload("res://scripts/character.gd")
 const LightMapScript := preload("res://scripts/lightmap.gd")
+const PostFxScript := preload("res://scripts/postfx.gd")
 const SHADOW_SHADER: Shader = preload("res://shaders/shadow.gdshader")
 
 const NIGHT_DUSK := 0.5     # etapy doby: 0 dzien, 0.5 zmierzch, 1 noc
@@ -33,6 +34,7 @@ const CAR_WEIGHTS := [10, 20, 20, 15, 12, 8, 6, 5, 4]
 var rng := RandomNumberGenerator.new()
 var world
 var lights            # mapa swiatel (scripts/lightmap.gd)
+var postfx            # bloom (scripts/postfx.gd)
 var flow
 var player
 var cam: Camera3D
@@ -104,6 +106,8 @@ func _ready() -> void:
 			_steps = int(a.substr(8))
 	lights = LightMapScript.new()
 	add_child(lights)
+	postfx = PostFxScript.new()
+	add_child(postfx)
 	world = WorldScript.new()
 	add_child(world)
 	world.setup()
@@ -645,6 +649,7 @@ func _update(dt: float) -> void:
 		shake -= dt
 	night_cur = move_toward(night_cur, night_target, dt * 0.6)
 	world.set_night(night_cur)
+	postfx.set_night(night_cur)
 	_update_camera(dt)
 	_update_lights(dt)
 	_update_shadows()
