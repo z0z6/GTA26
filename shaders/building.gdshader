@@ -86,8 +86,8 @@ void fragment() {
 			if (rnd > 0.78) gl = mix(gl, vec3(0.86, 0.80, 0.66), 0.7);   // firanki
 			bool lit = h21(vec2(cell * 1.7, fi * 2.3 + 9.0)) > 0.52;
 			if (night > 0.01 && lit) {
-				glow = glass * night;
-				gl = mix(gl, glow_col, night);
+				glow = glass * lamps_on(night);
+				gl = mix(gl, glow_col, lamps_on(night));
 			}
 			if (style == 2 || style == 5) {
 				// parapet i balkon co drugi cell na wyzszych pietrach
@@ -129,6 +129,8 @@ void fragment() {
 	}
 
 	col *= shade;
-	col = apply_night_bld(col, v_w.xz, glow);
+	// swiatla ulicy (latarnie, reflektory) oswietlaja dolne partie scian, nie dachy ani gorne pietra
+	float reach = (kind < 0.2) ? (1.0 - 0.7 * smoothstep(0.0, 3.5, v_w.y)) : 0.2;
+	col = apply_night_bld(col, v_w.xz, glow, reach);
 	ALBEDO = to_lin(col);
 }

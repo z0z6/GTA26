@@ -30,51 +30,11 @@ g_night={
 "type": "float",
 "value": 0.0
 }
-g_l0={
-"type": "vec4",
-"value": Vector4(0, 0, 1, 0)
+g_lightmap={
+"type": "sampler2D",
+"value": ""
 }
-g_l1={
-"type": "vec4",
-"value": Vector4(0, 0, 1, 0)
-}
-g_l2={
-"type": "vec4",
-"value": Vector4(0, 0, 1, 0)
-}
-g_l3={
-"type": "vec4",
-"value": Vector4(0, 0, 1, 0)
-}
-g_l4={
-"type": "vec4",
-"value": Vector4(0, 0, 1, 0)
-}
-g_l5={
-"type": "vec4",
-"value": Vector4(0, 0, 1, 0)
-}
-g_l6={
-"type": "vec4",
-"value": Vector4(0, 0, 1, 0)
-}
-g_l7={
-"type": "vec4",
-"value": Vector4(0, 0, 1, 0)
-}
-g_l8={
-"type": "vec4",
-"value": Vector4(0, 0, 1, 0)
-}
-g_l9={
-"type": "vec4",
-"value": Vector4(0, 0, 1, 0)
-}
-g_l10={
-"type": "vec4",
-"value": Vector4(0, 0, 1, 0)
-}
-g_l11={
-"type": "vec4",
-"value": Vector4(0, 0, 1, 0)
+g_lm_origin={
+"type": "vec2",
+"value": Vector2(0, 0)
 }

@@ -105,7 +105,6 @@ func setup() -> void:
 	ground.mesh = plane
 	ground.name = "Ground"
 	add_child(ground)
-	set_lights(PackedVector4Array())
 
 
 func _load_buildings() -> void:
@@ -133,12 +132,6 @@ func _load_buildings() -> void:
 func set_night(v: float) -> void:
 	night = v
 	RenderingServer.global_shader_parameter_set("g_night", v)
-
-
-## Do 12 swiatel: Vector4(x, z, promien, jasnosc) w kaflach.
-func set_lights(l: PackedVector4Array) -> void:
-	for i in 12:
-		RenderingServer.global_shader_parameter_set("g_l%d" % i, l[i] if i < l.size() else Vector4(0, 0, 1, 0))
 
 
 # --- zapytania o kafle ---

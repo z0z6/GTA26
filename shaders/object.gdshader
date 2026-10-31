@@ -56,11 +56,8 @@ void fragment() {
 	vec3 col = v_col.rgb * tint.rgb * shade;
 	col = mix(col, vec3(1.0), flash);
 	if (night > 0.001) {
-		float lit = light_amount(v_w.xz);
-		vec3 dark = col * vec3(0.24, 0.28, 0.42);
-		vec3 warm = col * lit * vec3(1.0, 0.86, 0.58);
-		vec3 r = mix(col, dark + warm, night);
-		if (v_col.a < 0.75) r = mix(r, v_col.rgb * 1.5 + vec3(0.2), night * 0.9);
+		vec3 r = apply_night_obj(col, v_w.xz);
+		if (v_col.a < 0.75) r = mix(r, v_col.rgb * 1.5 + vec3(0.2), lamps_on(night) * 0.9);   // reflektory, lampy
 		col = r;
 	}
 	ALBEDO = to_lin(col);

@@ -13,8 +13,10 @@ const HudScript := preload("res://scripts/hud.gd")
 const Models := preload("res://scripts/models.gd")
 const MeshBuilder := preload("res://scripts/mesh_builder.gd")
 const CharacterScript := preload("res://scripts/character.gd")
+const LightMapScript := preload("res://scripts/lightmap.gd")
 const SHADOW_SHADER: Shader = preload("res://shaders/shadow.gdshader")
 
+const NIGHT_DUSK := 0.5     # etapy doby: 0 dzien, 0.5 zmierzch, 1 noc
 const START_TILE := Vector2i(533, 441)
 const CAM_HEIGHT := 40.0
 const FOV_MIN := 15.0
@@ -30,6 +32,7 @@ const CAR_WEIGHTS := [10, 20, 20, 15, 12, 8, 6, 5, 4]
 
 var rng := RandomNumberGenerator.new()
 var world
+var lights            # mapa swiatel (scripts/lightmap.gd)
 var flow
 var player
 var cam: Camera3D
@@ -59,7 +62,8 @@ var joy_origin := Vector2.ZERO
 var joy_pos := Vector2.ZERO
 var _next_item := 0
 var _fov_target := FOV_DEFAULT
-var _light_t := 0.0
+var _lamp_t := 0.0
+var _lamp_cache: Array = []
 var _cam_pos := Vector2.ZERO
 var _shadow_mm: MultiMesh
 var _coin_mesh: ArrayMesh
@@ -80,6 +84,7 @@ func _ready() -> void:
 	var at_override := Vector2.ZERO
 	var has_at := false
 	var test_night := false
+	var test_dusk := false
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--shot="):
 			_shot = a.substr(7)
@@ -89,12 +94,16 @@ func _ready() -> void:
 			has_at = true
 		elif a == "--night":
 			test_night = true
+		elif a == "--dusk":
+			test_dusk = true
 		elif a.begins_with("--autoplay="):
 			_autoplay = float(a.substr(11))
 		elif a.begins_with("--seed="):
 			rng.seed = int(a.substr(7))
 		elif a.begins_with("--steps="):
 			_steps = int(a.substr(8))
+	lights = LightMapScript.new()
+	add_child(lights)
 	world = WorldScript.new()
 	add_child(world)
 	world.setup()
@@ -129,8 +138,8 @@ func _ready() -> void:
 	hud.game = self
 	layer.add_child(hud)
 
-	world.set_night(1.0 if test_night else 0.0)
-	night_target = 1.0 if test_night else 0.0
+	night_target = 1.0 if test_night else (NIGHT_DUSK if test_dusk else 0.0)
+	world.set_night(night_target)
 	night_cur = night_target
 	world.build_all_near(start)
 	flow.start(start)
@@ -268,8 +277,23 @@ func start_game() -> void:
 	state = "play"
 
 
+## Przelacza pore doby: dzien -> zmierzch -> noc -> dzien.
 func toggle_night() -> void:
-	night_target = 0.0 if night_target > 0.5 else 1.0
+	if night_target < 0.25:
+		night_target = NIGHT_DUSK
+	elif night_target < 0.75:
+		night_target = 1.0
+	else:
+		night_target = 0.0
+
+
+## Nazwa nastepnej pory doby (do przycisku).
+func next_time_of_day_name() -> String:
+	if night_target < 0.25:
+		return "Zmierzch"
+	elif night_target < 0.75:
+		return "Noc"
+	return "Dzień"
 
 
 func next_item_name() -> String:
@@ -450,6 +474,7 @@ func player_throw() -> void:
 func on_projectile_hit_enemy(e, it: Dictionary, from: Vector2) -> void:
 	e.hit(it, from)
 	stats["hits"] += 1
+	lights.flash(e.pos, Color(1.0, 0.92, 0.6), 3.0, 0.3)
 	add_float("Trafiony! (%s)" % it["name"], e.pos, Color("#9be58a"))
 	if rng.randf() < 0.35:
 		_drop_coin(e.pos)
@@ -620,15 +645,15 @@ func _update(dt: float) -> void:
 		shake -= dt
 	night_cur = move_toward(night_cur, night_target, dt * 0.6)
 	world.set_night(night_cur)
-	_update_lights(dt)
 	_update_camera(dt)
+	_update_lights(dt)
 	_update_shadows()
 	world.update_chunks(_cam_pos, 5.0)
 	world.tree_mat.set_shader_parameter("fade_pos", Vector3(player.pos.x, 0, player.pos.y))
 	for lb in _labels:
 		var d: float = Vector2(lb.position.x, lb.position.z).distance_to(_cam_pos)
 		lb.visible = d < 20.0 and night_cur < 0.7
-	hud.btn_night.text = "Dzień" if night_target > 0.5 else "Noc"
+	hud.btn_night.text = next_time_of_day_name()
 	hud.position = Vector2.ZERO
 	hud.size = get_viewport().get_visible_rect().size
 	hud.queue_redraw()
@@ -680,6 +705,7 @@ func _check_car_hits() -> void:
 			debt += 300.0
 			stats["car_fines"] += 1
 			shake = 0.3
+			lights.flash(player.pos, Color(1.0, 0.45, 0.2), 4.0, 0.4)
 			player.hit_by(c.pos, 1.0, 0.6)
 			add_float("Mandat: potrącenie (%s)! +300 zł" % c.car_name, player.pos, Color("#ff9d5e"), 2.0)
 			c.speed = 0.0
@@ -689,6 +715,7 @@ func _check_car_hits() -> void:
 		for e in enemies:
 			if e.stun <= 0.0 and c.overlaps(e.pos, e.radius):
 				e.hit_by_car(c)
+				lights.flash(e.pos, Color(1.0, 0.55, 0.25), 3.5, 0.4)
 				add_float("Windykator potrącony!", e.pos, Color("#9be58a"), 1.6)
 				c.speed = 0.0
 
@@ -713,21 +740,34 @@ func _director() -> void:
 
 
 func _update_lights(dt: float) -> void:
-	_light_t -= dt
-	if _light_t > 0.0 or night_cur < 0.02:
+	var on := night_cur >= 0.02
+	lights.set_active(on)
+	if not on:
 		return
-	_light_t = 0.15
-	var l := PackedVector4Array()
-	l.append(Vector4(player.pos.x, player.pos.y, 7.0, 0.9))
-	var sorted_cars := cars.duplicate()
-	sorted_cars.sort_custom(func(a, b): return a.pos.distance_squared_to(player.pos) < b.pos.distance_squared_to(player.pos))
-	for i in mini(3, sorted_cars.size()):
-		var c = sorted_cars[i]
-		var hp: Vector2 = c.pos + c.dir * 1.6
-		l.append(Vector4(hp.x, hp.y, 4.2, 0.85))
-	for lp in world.nearest_lamps(player.pos, 12 - l.size()):
-		l.append(Vector4(lp.x, lp.y, 5.5, 0.95))
-	world.set_lights(l)
+	_lamp_t -= dt
+	if _lamp_t <= 0.0:
+		_lamp_t = 0.4
+		_lamp_cache = world.nearest_lamps(_cam_pos, 40)
+	lights.begin(_cam_pos)
+	# latarnie: cieple, sodowe swiatlo
+	for lp in _lamp_cache:
+		lights.point(lp, 6.0, Color(1.0, 0.78, 0.42), 0.95)
+	# gracz: lagodne ciepla poswiata, zeby postac byla czytelna w ciemnosci
+	lights.point(player.pos, 6.5, Color(1.0, 0.90, 0.72), 0.7)
+	# auta: stozki reflektorow, delikatny blask pod autem i tylne swiatla (mocniejsze przy hamowaniu)
+	var cam2 := _cam_pos
+	for c in cars:
+		if c.pos.distance_squared_to(cam2) > 1444.0:
+			continue
+		var front: Vector2 = c.pos + c.dir * c.length * 0.45
+		lights.cone(front, c.dir, 9.5, 3.8, Color(1.0, 0.93, 0.74), 1.1)
+		lights.point(c.pos, 2.2, Color(1.0, 0.85, 0.6), 0.22)
+		var braking: bool = c.speed < 0.5
+		lights.point(c.pos - c.dir * c.length * 0.5, 1.4, Color(1.0, 0.12, 0.08), 0.75 if braking else 0.38)
+	# wierzyciele: zlowrogi, czerwonawy blask
+	for e in enemies:
+		lights.point(e.pos, 2.4, Color(1.0, 0.25, 0.15), 0.3)
+	lights.end()
 
 
 func _update_camera(dt: float) -> void:

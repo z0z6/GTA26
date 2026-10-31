@@ -6,6 +6,7 @@ Silnik: Godot 4.4 (GDScript, renderer Compatibility). Cel: Android.
 
 ## Co jest w grze
 
+- Oświetlenie nocne: kolorowa mapa świateł (`scripts/lightmap.gd`) z latarniami, stożkami reflektorów aut, tylnymi światłami i błyskami; trzy pory doby (dzień, zmierzch, noc).
 - Podłoże rysowane shaderem (gładkie granice terenów, chodniki, oznaczenia dróg, woda), budynki z wielokątów OSM
   z elewacjami, dachami spadzistymi i płaskimi, drzewa, latarnie, tryb nocny.
 - Postacie 3D z animacją: gracz, 4 typy wierzycieli, przechodnie z reakcjami na sytuację (auta, pościg, rzucane przedmioty, wydarzenia).
@@ -15,7 +16,7 @@ Silnik: Godot 4.4 (GDScript, renderer Compatibility). Cel: Android.
 ## Uruchomienie
 
 1. Otwórz projekt w Godot 4.4.x i naciśnij F5.
-2. Sterowanie: strzałki/WASD (lub przeciąganie palcem), Shift = sprint, Spacja = rzut, N = dzień/noc, Enter = start, kółko myszy / +/− / szczypanie = przybliżenie.
+2. Sterowanie: strzałki/WASD (lub przeciąganie palcem), Shift = sprint, Spacja = rzut, N = dzień/zmierzch/noc, Enter = start, kółko myszy / +/− / szczypanie = przybliżenie.
 
 ## Testy (bez okna, jak w CI)
 
@@ -26,7 +27,7 @@ godot --headless --path . -- --autoplay=40 --steps=10
 ```
 
 Podgląd do zrzutów (wymaga renderera, np. xvfb + opengl3):
-`godot --rendering-driver opengl3 --path . -- --shot=plik.png --at=533,441 [--night] [--autoplay=20 --steps=10]`
+`godot --rendering-driver opengl3 --path . -- --shot=plik.png --at=533,441 [--dusk|--night] [--autoplay=20 --steps=10]`
 
 ## Android
 
@@ -39,6 +40,20 @@ Preset "Web" w `export_presets.cfg` (bez wątków, więc nie wymaga specjalnych 
 `.github/workflows/web.yml` (Actions → Web build → Run workflow) publikuje grę na GitHub Pages.
 Wymagane jednorazowo: Settings → Pages → Source: **GitHub Actions**.
 Uwaga: `index.wasm` ma ok. 44 MB bez kompresji, więc pierwsze wczytanie jest wolniejsze.
+
+## Oświetlenie (jak dodać własne światło)
+
+`scripts/lightmap.gd` rysuje co klatkę małą mapę świateł (SubViewport 64×64 kafle wokół kamery), którą próbkują shadery
+terenu, budynków i obiektów. W `main.gd` → `_update_lights()` wystarczy wywołać:
+
+```
+lights.point(pozycja, promień, Color(...), jasność)                      # latarnia, blask
+lights.cone(pozycja, kierunek, zasięg, połowa_szerokości, Color(...), jasność)   # reflektor
+lights.flash(pozycja, Color(...), promień, czas)                          # krótki błysk (trafienie, uderzenie)
+```
+
+Nastrój nocy reguluje się w `shaders/common.gdshaderinc`: stałe `AMB_DUSK` i `AMB_NIGHT` (światło otoczenia)
+oraz `lamps_on()` (kiedy zapalają się latarnie i okna).
 
 ## Dane
 
